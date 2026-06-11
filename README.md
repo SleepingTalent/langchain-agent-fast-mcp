@@ -35,6 +35,9 @@ graph LR
 
 ## Quick start
 
+<details>
+<summary>Show steps</summary>
+
 ```bash
 # 1. Clone the repo
 git clone https://github.com/SleepingTalent/langchain-agent-fast-mcp.git
@@ -51,9 +54,14 @@ docker compose up --build
 open http://localhost:8501
 ```
 
+</details>
+
 ---
 
 ## Environment variables
+
+<details>
+<summary>Show variables</summary>
 
 | Variable | Default | Description |
 |---|---|---|
@@ -68,6 +76,8 @@ open http://localhost:8501
 
 When running via Docker Compose, the frontend connects to Ollama on the host via `host.docker.internal`. Set `OLLAMA_URL=http://host.docker.internal:11434` in your `.env` if needed.
 
+</details>
+
 ---
 
 ## Development
@@ -79,6 +89,9 @@ uv sync
 ```
 
 ### Tasks
+
+<details>
+<summary>Show tasks</summary>
 
 | Task | Description |
 |---|---|
@@ -92,7 +105,12 @@ uv sync
 | `uv run task frontend-headless-bdd` | Spin up stack · run frontend BDD tests headless · tear down |
 | `uv run task ci` | `check` + `mcp-bdd` |
 
+</details>
+
 ### Project structure
+
+<details>
+<summary>Show structure</summary>
 
 ```
 langchain-agent-fast-mcp/
@@ -116,6 +134,8 @@ langchain-agent-fast-mcp/
 ├── docker-compose.yml
 └── pyproject.toml
 ```
+
+</details>
 
 ---
 
