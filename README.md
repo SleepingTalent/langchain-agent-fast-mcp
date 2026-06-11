@@ -141,6 +141,46 @@ Integration tests that call the FastMCP server's JSON-RPC API directly. Require 
 | Search users by name finds a match | `search_users` with query `Alice` returns a user whose name contains `Alice` |
 | Get low stock products below threshold | `get_low_stock_products` with threshold `50` returns only products with `stock < 50` |
 
+<details>
+<summary>Feature file — <code>tests/features/mcp_server.feature</code></summary>
+
+```gherkin
+Feature: MCP Tool Server
+  As the AI agent
+  I want to call database tools via the MCP server
+  So that I can answer questions about users and products
+
+  Background:
+    Given the MCP server is running
+
+  Scenario: Available tools are discoverable
+    When I request the list of available tools
+    Then the response should include a tool named "list_users"
+    And the response should include a tool named "list_products"
+
+  Scenario: List users returns seeded data
+    When I call the "list_users" tool with no arguments
+    Then the result should contain at least 1 user
+    And each user should have a "name" and "email" field
+
+  Scenario: List products returns seeded data
+    When I call the "list_products" tool with no arguments
+    Then the result should contain at least 1 product
+    And each product should have a "name" and "price" field
+
+  Scenario: Search users by name finds a match
+    When I call the "search_users" tool with query "Alice"
+    Then the result should contain at least 1 user
+    And the first user's "name" should contain "Alice"
+
+  Scenario: Get low stock products below threshold
+    When I call the "get_low_stock_products" tool with threshold 50
+    Then the result should contain at least 1 product
+    And each product's "stock" should be below 50
+```
+
+</details>
+
 ```bash
 uv run task mcp-bdd
 ```
@@ -154,6 +194,33 @@ Full end-to-end tests that drive the Streamlit UI via Playwright, sending real p
 | Agent lists users from the database | Response contains at least one seeded user name (Alice, Bob, Charlie, Diana, Eve) |
 | Agent lists products from the database | Response contains at least one seeded product name (Keyboard, Hub, Headphones, etc.) |
 | Agent searches for a specific user | Response contains `Alice` when asked to find users named Alice |
+
+<details>
+<summary>Feature file — <code>tests/features/frontend.feature</code></summary>
+
+```gherkin
+Feature: Frontend Agent
+  As a user of the chat interface
+  I want to ask the AI agent questions about users and products
+  So that I can get answers backed by real database data
+
+  Background:
+    Given the Streamlit app is running and connected
+
+  Scenario: Agent lists users from the database
+    When I ask the agent "list all users"
+    Then the response should mention a user name
+
+  Scenario: Agent lists products from the database
+    When I ask the agent "list all products"
+    Then the response should mention a product name
+
+  Scenario: Agent searches for a specific user
+    When I ask the agent "find users named Alice"
+    Then the response should contain "Alice"
+```
+
+</details>
 
 ```bash
 uv run task frontend-bdd          # headed (browser visible)
