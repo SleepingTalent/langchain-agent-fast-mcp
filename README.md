@@ -106,7 +106,7 @@ langchain-agent-fast-mcp/
 │   └── src/mcp_server/
 │       ├── main.py       # FastMCP server entry point
 │       └── tools/        # users + products tool definitions
-├── docker/
+├── postgres-init/
 │   └── init.sql          # Schema and seed data
 ├── tests/
 │   ├── features/         # Gherkin feature files
