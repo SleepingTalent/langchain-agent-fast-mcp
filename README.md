@@ -6,15 +6,13 @@ A conversational AI agent built with [LangGraph](https://github.com/langchain-ai
 
 ## Architecture
 
-```
-┌─────────────────────┐        MCP (HTTP)       ┌──────────────────────┐
-│  Streamlit frontend │ ──────────────────────▶  │  FastMCP server      │
-│  (LangGraph agent)  │                          │  (users + products)  │
-└─────────────────────┘                          └──────────┬───────────┘
-                                                            │ SQL
-                                                 ┌──────────▼───────────┐
-                                                 │  PostgreSQL 16        │
-                                                 └──────────────────────┘
+```mermaid
+graph LR
+    User("👤 User") --> ST
+    ST["Streamlit Frontend\n(LangGraph ReAct Agent)"]
+    ST -->|"MCP over HTTP"| MCP["FastMCP Server\nlist_users · list_products\nsearch_users · get_low_stock_products"]
+    MCP -->|SQL| PG[("PostgreSQL 16")]
+    OL["Ollama\nlocal LLM"] -->|inference| ST
 ```
 
 - **Frontend** — Streamlit chat UI. Agent logic lives in `frontend/agent.py` (no Streamlit imports); `frontend/app.py` wires it into the UI and stores all state in `st.session_state`.
@@ -80,17 +78,19 @@ When running via Docker Compose, the frontend connects to Ollama on the host via
 uv sync
 ```
 
-### Available tasks
+### Tasks
 
-```bash
-uv run task check        # format + lint + unit tests
-uv run task format       # black
-uv run task lint         # ruff
-uv run task unit-test    # pytest (excludes BDD tests)
-uv run task run-stack    # docker compose up --build
-uv run task bdd-test     # spin up stack, run BDD tests, tear down
-uv run task ci           # check + bdd-test
-```
+| Task | Description |
+|---|---|
+| `uv run task format` | Format code with Black |
+| `uv run task lint` | Lint with Ruff |
+| `uv run task unit-test` | Run unit tests (no stack required) |
+| `uv run task check` | Format + lint + unit tests |
+| `uv run task run-stack` | Start the full Docker stack |
+| `uv run task mcp-bdd` | Spin up stack · run MCP BDD tests · tear down |
+| `uv run task frontend-bdd` | Spin up stack · run frontend BDD tests in headed browser · tear down |
+| `uv run task frontend-headless-bdd` | Spin up stack · run frontend BDD tests headless · tear down |
+| `uv run task ci` | `check` + `mcp-bdd` |
 
 ### Project structure
 
@@ -117,12 +117,65 @@ langchain-agent-fast-mcp/
 └── pyproject.toml
 ```
 
-### Running tests
+---
+
+## Tests
+
+### Unit tests
+
+Cover `frontend/agent.py` and `frontend/config.py` in isolation with all external calls mocked. Run without a running stack.
 
 ```bash
-# Unit tests only (no stack required)
 uv run task unit-test
-
-# BDD integration tests (spins up Docker stack automatically)
-uv run task bdd-test
 ```
+
+### MCP BDD tests — `tests/features/mcp_server.feature`
+
+Integration tests that call the FastMCP server's JSON-RPC API directly. Require postgres + mcp-server to be running.
+
+| Scenario | What is verified |
+|---|---|
+| Available tools are discoverable | `tools/list` returns `list_users` and `list_products` |
+| List users returns seeded data | `list_users` returns ≥ 1 result with `name` and `email` fields |
+| List products returns seeded data | `list_products` returns ≥ 1 result with `name` and `price` fields |
+| Search users by name finds a match | `search_users` with query `Alice` returns a user whose name contains `Alice` |
+| Get low stock products below threshold | `get_low_stock_products` with threshold `50` returns only products with `stock < 50` |
+
+```bash
+uv run task mcp-bdd
+```
+
+### Frontend BDD tests — `tests/features/frontend.feature`
+
+Full end-to-end tests that drive the Streamlit UI via Playwright, sending real prompts through the LangGraph agent → Ollama → MCP → PostgreSQL and asserting on the chat responses. **Require the full stack and a local Ollama instance.**
+
+| Scenario | What is verified |
+|---|---|
+| Agent lists users from the database | Response contains at least one seeded user name (Alice, Bob, Charlie, Diana, Eve) |
+| Agent lists products from the database | Response contains at least one seeded product name (Keyboard, Hub, Headphones, etc.) |
+| Agent searches for a specific user | Response contains `Alice` when asked to find users named Alice |
+
+```bash
+uv run task frontend-bdd          # headed (browser visible)
+uv run task frontend-headless-bdd # headless
+```
+
+---
+
+## GitHub Actions
+
+The CI pipeline runs on every push and pull request to `main`.
+
+```mermaid
+flowchart LR
+    L["Lint\nuv run task lint"] --> T["Test\nuv run task unit-test"]
+    T --> B["MCP BDD Test\nuv run task mcp-bdd"]
+```
+
+| Job | Runs | What it does |
+|---|---|---|
+| **Lint** | Always | Runs Ruff against `frontend/` and `tests/` |
+| **Test** | After Lint passes | Runs the unit test suite (17 tests, no stack) |
+| **MCP BDD Test** | After Test passes | Spins up postgres + mcp-server in Docker, runs the 5 MCP BDD scenarios, tears down |
+
+> **Frontend BDD tests** are not wired into CI — they require a local Ollama instance which is not available on GitHub Actions runners.
