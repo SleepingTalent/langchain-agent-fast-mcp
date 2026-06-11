@@ -22,6 +22,7 @@ dev = [
     "taskipy>=1.12",
     "black>=24.0",
     "ruff>=0.8",
+    "pytest-playwright>=0.8.0",
 ]
 
 [tool.pytest.ini_options]
@@ -34,7 +35,8 @@ format = "black frontend/ tests/"
 unit-test = "pytest tests/ --ignore=tests/bdd"
 check = "task format && task lint && task unit-test"
 run-stack = "docker compose up --build"
-bdd-test = "docker compose up --build -d --wait && pytest tests/bdd && docker compose down"
+bdd-test = "docker compose up --build -d --wait && pytest tests/bdd/test_mcp_server.py && docker compose down"
+frontend-bdd-test = "docker compose up --build -d --wait && pytest tests/bdd/test_frontend.py -v && docker compose down"
 ci = "task check && task bdd-test"
 
 [tool.black]
