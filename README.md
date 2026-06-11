@@ -1,128 +1,128 @@
-# Claude Project Template
+# langchain-agent-fast-mcp
 
-A starting point for Python projects that use Claude Code with a structured spec-driven development workflow. Drop this template into any new repo to get consistent standards, slash commands, and a repeatable feature-delivery process from idea through to implementation.
-
----
-
-## What's Included
-
-| Path | Purpose |
-|------|---------|
-| `CLAUDE.md` | Project-wide instructions Claude follows automatically — coding standards, MCP tool rules, project structure |
-| `.claude/commands/` | Slash commands available in Claude Code sessions |
-| `.claude/skills/` | The skill logic backing each slash command |
-| `.mcp.json.example` | Template for configuring MCP servers (copy to `.mcp.json` and fill in credentials) |
+A conversational AI agent built with [LangGraph](https://github.com/langchain-ai/langgraph) and [Streamlit](https://streamlit.io), backed by a [FastMCP](https://github.com/jlowin/fastmcp) tool server that queries a PostgreSQL database.
 
 ---
 
-## Slash Commands
-
-The template ships with a suite of commands that walk a feature from rough idea to merged code. They are designed to be used in order, though each can also be called independently.
-
-### `/brainstorm-spec`
-
-**When to use:** You have a rough idea but aren't sure how to approach it yet — before writing any spec or code.
-
-Runs a structured dialogue to explore the problem space. Claude asks one focused question at a time, presents 2–4 concrete options at each decision point, and applies YAGNI to keep scope tight. By the end you have a clear, validated design ready to be formalised.
-
-Trigger phrases: *"let's brainstorm"*, *"I have an idea"*, *"help me think through"*, *"what are my options"*
-
----
-
-### `/create-spec`
-
-**When to use:** You know what you want to build and need a formal written specification before implementation starts.
-
-Generates a structured set of spec documents in `.claude/specs/YYYY-MM-DD-spec-name/`:
-
-- `spec.md` — main requirements document (always created)
-- `spec-lite.md` — condensed 1–3 sentence summary for AI context (always created)
-- `sub-specs/technical-spec.md` — technical requirements and dependencies (always created)
-- `sub-specs/database-schema.md` — schema changes and migrations (only if DB changes needed)
-- `sub-specs/api-spec.md` — endpoints, parameters, responses (only if API changes needed)
-
-Trigger phrases: *"create a spec"*, *"write up the spec"*, *"formalise this"*, *"document this feature"*
-
-> Can be called directly from an idea, or as the natural follow-on after `/brainstorm-spec`.
-
----
-
-### `/create-tasks`
-
-**When to use:** You have an approved spec and want to break it into a concrete, ordered task list before writing any code.
-
-Reads the spec documents and produces a `tasks.md` file in the same spec folder. Tasks are ordered for TDD — tests are defined before implementation. Requires `spec.md` to contain `Status: approved`.
-
-Trigger phrases: *"create tasks"*, *"generate tasks"*, *"break this into tasks"*, *"what do I need to build"*
-
----
-
-### `/execute-tasks`
-
-**When to use:** You have a `tasks.md` and want Claude to implement the entire spec end-to-end, one task at a time.
-
-Orchestrates the full implementation run: picks up each uncompleted parent task in order, delegates to `/execute-task` for the actual work, runs integration and regression checks between tasks, and calls final quality gates when everything is done. Can be resumed mid-way if a session is interrupted.
-
-Trigger phrases: *"execute all tasks"*, *"implement the spec"*, *"run the tasks"*, *"let's build this"*, *"start implementation"*
-
----
-
-### `/execute-task`
-
-**When to use:** You want to implement one specific numbered task from `tasks.md` rather than running the whole list.
-
-Works through all subtasks for the given parent task using a TDD workflow — reads the spec for context, writes tests first, implements to make them pass, then marks subtasks complete as it goes. Useful for resuming after a blocker or for implementing tasks selectively.
-
-Trigger phrases: *"execute task 2"*, *"implement task 1"*, *"work on task 3"*
-
----
-
-## Typical Workflow
+## Architecture
 
 ```
-/brainstorm-spec   # explore and validate the idea
-       ↓
-/create-spec       # formalise into spec documents
-       ↓           # (review and add "Status: approved" to spec.md)
-/create-tasks      # break spec into ordered implementation tasks
-       ↓           # (review tasks.md before starting)
-/execute-tasks     # implement everything, task by task
+┌─────────────────────┐        MCP (HTTP)       ┌──────────────────────┐
+│  Streamlit frontend │ ──────────────────────▶  │  FastMCP server      │
+│  (LangGraph agent)  │                          │  (users + products)  │
+└─────────────────────┘                          └──────────┬───────────┘
+                                                            │ SQL
+                                                 ┌──────────▼───────────┐
+                                                 │  PostgreSQL 16        │
+                                                 └──────────────────────┘
 ```
 
-Each step produces a persistent artefact (spec files, tasks.md, committed code) so work can be paused and resumed across sessions without losing context.
+- **Frontend** — Streamlit chat UI. Agent logic lives in `frontend/agent.py` (no Streamlit imports); `frontend/app.py` wires it into the UI and stores all state in `st.session_state`.
+- **Agent** — `create_react_agent` from LangGraph, using [langchain-mcp-adapters](https://github.com/langchain-ai/langchain-mcp-adapters) to expose the FastMCP tools as LangChain tools.
+- **MCP server** — FastMCP HTTP server exposing four tools: `list_users`, `list_products`, `search_users`, `get_low_stock_products`.
+- **LLM** — [Ollama](https://ollama.com) running locally (default model: `qwen3:14b`). Configurable via environment variables.
 
 ---
 
-## Development Standards
+## Prerequisites
 
-See `CLAUDE.md` for the full rules Claude follows in this project. Key points:
-
-- **Package manager:** `uv` only — no `pip`, no `requirements.txt`
-- **Python:** 3.11+, type hints, PEP 8, `pathlib.Path`, Pydantic/dataclasses over dicts
-- **Tests:** `pytest` in `tests/`, TDD, fixtures in `conftest.py`, run with `uv run pytest`
-- **Docker:** multi-stage Dockerfiles, `python:3.11-slim` base, no hardcoded secrets
-- **Project layout:** `src/<package>/`, `tests/`, `pyproject.toml` as the single source of truth
-
----
-
-## MCP Tools
-
-Copy `.mcp.json.example` to `.mcp.json` and configure the servers you need. The tools Claude is required to use:
-
-| Tool | When Claude must use it |
-|------|------------------------|
-| **Context7** | Before writing any code that uses a third-party library |
-| **Fetch** | When a URL or documentation page is referenced |
-| **Brave Search** | For current version numbers, release notes, or known issues |
-| **Playwright** | Any browser interaction or JS-rendered page |
-| **Memory** | Persisting and recalling project decisions across sessions |
-| **Docker MCP** | Managing containers, images, volumes, and networks |
+- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
+- [Ollama](https://ollama.com) running locally with at least one model pulled, e.g.:
+  ```bash
+  ollama pull qwen3:14b
+  ```
+- [uv](https://docs.astral.sh/uv/) for local development
 
 ---
 
-## Getting Started
+## Quick start
 
-1. Copy this template into your new project directory
-2. Copy `.mcp.json.example` → `.mcp.json` and fill in your MCP server credentials
-3. Open the project in Claude Code
-4. Start with `/brainstorm-spec` or jump straight to `/create-spec` if you already know what you're building
+```bash
+# 1. Clone the repo
+git clone https://github.com/SleepingTalent/langchain-agent-fast-mcp.git
+cd langchain-agent-fast-mcp
+
+# 2. Copy and edit environment config
+cp .env.example .env
+# edit .env — set OLLAMA_URL, OLLAMA_DEFAULT_MODEL, OLLAMA_MODELS as needed
+
+# 3. Start the full stack
+docker compose up --build
+
+# 4. Open the UI
+open http://localhost:8501
+```
+
+---
+
+## Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `POSTGRES_DB` | `agentdb` | PostgreSQL database name |
+| `POSTGRES_USER` | `postgres` | PostgreSQL user |
+| `POSTGRES_PASSWORD` | `postgres` | PostgreSQL password |
+| `DATABASE_URL` | `postgresql://postgres:postgres@postgres:5432/agentdb` | Full DB URL (used by MCP server) |
+| `MCP_SERVER_URL` | `http://localhost:8001` | MCP server base URL (used by frontend) |
+| `OLLAMA_URL` | `http://localhost:11434` | Ollama API base URL |
+| `OLLAMA_DEFAULT_MODEL` | `qwen3:14b` | Model selected on startup |
+| `OLLAMA_MODELS` | `qwen3:14b,llama3.2:3b` | Comma-separated list of models shown in the sidebar |
+
+When running via Docker Compose, the frontend connects to Ollama on the host via `host.docker.internal`. Set `OLLAMA_URL=http://host.docker.internal:11434` in your `.env` if needed.
+
+---
+
+## Development
+
+### Install dependencies
+
+```bash
+uv sync
+```
+
+### Available tasks
+
+```bash
+uv run task check        # format + lint + unit tests
+uv run task format       # black
+uv run task lint         # ruff
+uv run task unit-test    # pytest (excludes BDD tests)
+uv run task run-stack    # docker compose up --build
+uv run task bdd-test     # spin up stack, run BDD tests, tear down
+uv run task ci           # check + bdd-test
+```
+
+### Project structure
+
+```
+langchain-agent-fast-mcp/
+├── frontend/
+│   ├── agent.py          # LangGraph agent (no Streamlit imports)
+│   ├── app.py            # Streamlit UI
+│   ├── config.py         # Environment config helpers
+│   ├── system_prompt.md  # Agent system prompt
+│   └── Dockerfile
+├── mcp_server/
+│   └── src/mcp_server/
+│       ├── main.py       # FastMCP server entry point
+│       └── tools/        # users + products tool definitions
+├── docker/
+│   └── init.sql          # Schema and seed data
+├── tests/
+│   ├── features/         # Gherkin feature files
+│   ├── bdd/              # pytest-bdd step definitions
+│   ├── test_agent.py
+│   └── test_config.py
+├── docker-compose.yml
+└── pyproject.toml
+```
+
+### Running tests
+
+```bash
+# Unit tests only (no stack required)
+uv run task unit-test
+
+# BDD integration tests (spins up Docker stack automatically)
+uv run task bdd-test
+```

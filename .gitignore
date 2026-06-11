@@ -26,5 +26,5 @@ Thumbs.db
 .idea/
 .vscode/
 
-# Claude project memory (local only)
-.claude/projects/
+# Claude Code local config
+.claude/
