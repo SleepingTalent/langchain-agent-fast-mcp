@@ -54,24 +54,28 @@ def ask_agent(app_page: Page, message: str) -> str:
     """Type a message, submit it, and wait for the assistant response."""
     page = app_page
     before_count = page.locator('[data-testid="stChatMessage"]').count()
+    expected = before_count + 2
 
     page.locator('[data-testid="stChatInputTextArea"]').fill(message)
     page.locator('[data-testid="stChatInputTextArea"]').press("Enter")
 
-    # Wait for both the user echo and the assistant reply to appear
+    # Single combined check: correct message count + spinner gone + last message
+    # has real content (guards against the brief window where spinner disappears
+    # but st.markdown hasn't rendered yet — inner_text would otherwise be just
+    # the avatar icon name "smart_toy").
     page.wait_for_function(
-        "count => document.querySelectorAll('[data-testid=\"stChatMessage\"]').length >= count",
-        arg=before_count + 2,
-        timeout=10_000,
-    )
-    # Wait for the spinner to finish (LLM + tool calls complete)
-    page.wait_for_function(
-        "() => document.querySelectorAll('[data-testid=\"stSpinner\"]').length === 0",
+        """(expected) => {
+            const msgs = document.querySelectorAll('[data-testid="stChatMessage"]');
+            if (msgs.length < expected) return false;
+            if (document.querySelectorAll('[data-testid="stSpinner"]').length > 0) return false;
+            const lastText = (msgs[msgs.length - 1].innerText || '').trim();
+            return lastText.length > 15;
+        }""",
+        arg=expected,
         timeout=120_000,
     )
 
-    messages = page.locator('[data-testid="stChatMessage"]').all()
-    return messages[-1].inner_text()
+    return page.locator('[data-testid="stChatMessage"]').last.inner_text()
 
 
 # ── Then ──────────────────────────────────────────────────────────────────────
