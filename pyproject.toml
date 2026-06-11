@@ -35,9 +35,10 @@ format = "black frontend/ tests/"
 unit-test = "pytest tests/ --ignore=tests/bdd"
 check = "task format && task lint && task unit-test"
 run-stack = "docker compose up --build"
-bdd-test = "docker compose up --build -d --wait && pytest tests/bdd/test_mcp_server.py && docker compose down"
-frontend-bdd-test = "docker compose up --build -d --wait && pytest tests/bdd/test_frontend.py -v && docker compose down"
-ci = "task check && task bdd-test"
+mcp-bdd = "docker compose up --build -d --wait && pytest tests/bdd/test_mcp_server.py && docker compose down"
+frontend-bdd = "docker compose up --build -d --wait && pytest tests/bdd/test_frontend.py -v --headed && docker compose down"
+frontend-headless-bdd = "docker compose up --build -d --wait && pytest tests/bdd/test_frontend.py -v && docker compose down"
+ci = "task check && task mcp-bdd"
 
 [tool.black]
 line-length = 100

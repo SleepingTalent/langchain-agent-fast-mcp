@@ -54,8 +54,8 @@ jobs:
       - name: Start postgres and MCP server
         run: docker compose up postgres mcp-server --build -d --wait
 
-      - name: BDD tests
-        run: uv run pytest tests/bdd -v
+      - name: MCP BDD tests
+        run: uv run pytest tests/bdd/test_mcp_server.py -v
 
       - name: Tear down
         if: always()
