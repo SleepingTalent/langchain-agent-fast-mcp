@@ -37,3 +37,26 @@ jobs:
 
       - name: Unit tests
         run: uv run task unit-test
+
+  bdd-test:
+    name: BDD Test
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Start postgres and MCP server
+        run: docker compose up postgres mcp-server --build -d --wait
+
+      - name: BDD tests
+        run: uv run pytest tests/bdd -v
+
+      - name: Tear down
+        if: always()
+        run: docker compose down
