@@ -16,7 +16,7 @@ graph LR
 ```
 
 - **Frontend** — Streamlit chat UI. Agent logic lives in `frontend/agent.py` (no Streamlit imports); `frontend/app.py` wires it into the UI and stores all state in `st.session_state`.
-- **Agent** — `create_react_agent` from LangGraph, using [langchain-mcp-adapters](https://github.com/langchain-ai/langchain-mcp-adapters) to expose the FastMCP tools as LangChain tools.
+- **Agent** — `create_agent` from LangChain, using [langchain-mcp-adapters](https://github.com/langchain-ai/langchain-mcp-adapters) to expose the FastMCP tools as LangChain tools.
 - **MCP server** — FastMCP HTTP server exposing four tools: `list_users`, `list_products`, `search_users`, `get_low_stock_products`.
 - **LLM** — [Ollama](https://ollama.com) running locally (default model: `qwen3:14b`). Configurable via environment variables.
 
@@ -45,7 +45,7 @@ cd langchain-agent-fast-mcp
 
 # 2. Copy and edit environment config
 cp .env.example .env
-# edit .env — set OLLAMA_URL, OLLAMA_DEFAULT_MODEL, OLLAMA_MODELS as needed
+# edit .env — set OLLAMA_URL and OLLAMA_MODEL as needed
 
 # 3. Start the full stack
 docker compose up --build
@@ -71,8 +71,7 @@ open http://localhost:8501
 | `DATABASE_URL` | `postgresql://postgres:postgres@postgres:5432/agentdb` | Full DB URL (used by MCP server) |
 | `MCP_SERVER_URL` | `http://localhost:8001` | MCP server base URL (used by frontend) |
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama API base URL |
-| `OLLAMA_DEFAULT_MODEL` | `qwen3:14b` | Model selected on startup |
-| `OLLAMA_MODELS` | `qwen3:14b,llama3.2:3b` | Comma-separated list of models shown in the sidebar |
+| `OLLAMA_MODEL` | `qwen3:14b` | Model used by the agent |
 
 When running via Docker Compose, the frontend connects to Ollama on the host via `host.docker.internal`. Set `OLLAMA_URL=http://host.docker.internal:11434` in your `.env` if needed.
 
@@ -262,7 +261,7 @@ flowchart LR
 | Job | Runs | What it does |
 |---|---|---|
 | **Lint** | Always | Runs Ruff against `frontend/` and `tests/` |
-| **Test** | After Lint passes | Runs the unit test suite (17 tests, no stack) |
+| **Test** | After Lint passes | Runs the unit test suite (16 tests, no stack) |
 | **MCP BDD Test** | After Test passes | Spins up postgres + mcp-server in Docker, runs the 5 MCP BDD scenarios, tears down |
 
 > **Frontend BDD tests** are not wired into CI — they require a local Ollama instance which is not available on GitHub Actions runners.
