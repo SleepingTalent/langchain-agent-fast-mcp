@@ -101,8 +101,26 @@ def test_run_turn_returns_empty_string_when_no_ai_message(mocker):
 
 
 def _patch_internals(mocker, mock_graph):
-    """Patch MultiServerMCPClient and create_react_agent to avoid real network calls."""
+    """Patch MultiServerMCPClient and create_agent to avoid real network calls."""
     mock_client = mocker.MagicMock()
     mock_client.get_tools = AsyncMock(return_value=[mocker.MagicMock()])
     mocker.patch("agent.MultiServerMCPClient", return_value=mock_client)
-    mocker.patch("agent.create_react_agent", return_value=mock_graph)
+    mocker.patch("agent.create_agent", return_value=mock_graph)
+
+
+def test_run_turn_uses_system_prompt_kwarg(mocker):
+    """create_agent must be called with system_prompt=, not prompt=."""
+    ai_msg = AIMessage(content="ok")
+    updated_state = {"messages": [ai_msg]}
+    mock_graph = mocker.MagicMock()
+    mock_graph.ainvoke = AsyncMock(return_value=updated_state)
+    mock_client = mocker.MagicMock()
+    mock_client.get_tools = AsyncMock(return_value=[mocker.MagicMock()])
+    mocker.patch("agent.MultiServerMCPClient", return_value=mock_client)
+    mock_create = mocker.patch("agent.create_agent", return_value=mock_graph)
+
+    agent.run_turn("hi", {"messages": []}, mocker.MagicMock())
+
+    _, kwargs = mock_create.call_args
+    assert "system_prompt" in kwargs
+    assert "prompt" not in kwargs
