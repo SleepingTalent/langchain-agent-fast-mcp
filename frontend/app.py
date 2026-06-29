@@ -14,50 +14,23 @@ st.title("AI Agent")
 
 # ── Session state initialisation (first load only) ────────────────────────────
 
-if "model" not in st.session_state:
-    st.session_state.model = config.get_default_model()
+if "agent" not in st.session_state:
     st.session_state.agent_state: AgentState = {"messages": []}
     st.session_state.messages: list[dict] = []
     st.session_state.agent_error: str | None = None
 
     try:
-        st.session_state.agent = build_agent(get_llm(st.session_state.model))
+        st.session_state.agent = build_agent(get_llm(config.get_model()))
     except Exception as exc:
         st.session_state.agent = None
         st.session_state.agent_error = str(exc)
 
-# ── Sidebar — model selector ───────────────────────────────────────────────────
+# ── Connection status banner ───────────────────────────────────────────────────
 
-with st.sidebar:
-    st.header("Settings")
-
-    model_options = config.get_available_models() or [config.get_default_model()]
-    current_model = (
-        st.session_state.model if st.session_state.model in model_options else model_options[0]
-    )
-    selected_model = st.selectbox(
-        "Model",
-        options=model_options,
-        index=model_options.index(current_model),
-    )
-
-    # Rebuild agent on model change; clear conversation history
-    if selected_model != st.session_state.model:
-        st.session_state.model = selected_model
-        st.session_state.agent_state = {"messages": []}
-        st.session_state.messages = []
-        st.session_state.agent_error = None
-
-        try:
-            st.session_state.agent = build_agent(get_llm(selected_model))
-        except Exception as exc:
-            st.session_state.agent = None
-            st.session_state.agent_error = str(exc)
-
-    if st.session_state.agent_error:
-        st.error(f"MCP connection failed: {st.session_state.agent_error}")
-    elif st.session_state.agent is not None:
-        st.success(f"Connected · {selected_model}")
+if st.session_state.agent_error:
+    st.error(f"MCP connection failed: {st.session_state.agent_error}")
+elif st.session_state.agent is not None:
+    st.success(f"Connected · {config.get_model()}")
 
 # ── Conversation history ───────────────────────────────────────────────────────
 

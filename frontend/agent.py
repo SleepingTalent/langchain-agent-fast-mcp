@@ -14,7 +14,7 @@ from langchain_core.messages import AIMessage, BaseMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_ollama import ChatOllama
 from langgraph.graph.message import add_messages
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 
 import config
 
@@ -60,7 +60,7 @@ def run_turn(
             {"agent-tools": {"url": f"{config.get_mcp_server_url()}/mcp", "transport": "http"}}
         )
         tools = await client.get_tools()
-        graph = create_react_agent(llm, tools, prompt=_load_system_prompt())
+        graph = create_agent(llm, tools, system_prompt=_load_system_prompt())
         messages = list(state.get("messages", [])) + [{"role": "user", "content": message}]
         return await graph.ainvoke({"messages": messages})
 
